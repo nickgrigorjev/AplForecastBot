@@ -36,4 +36,19 @@ public interface MatchResultRepository extends JpaRepository<MatchResult,Long> {
     @Transactional
     @Query(nativeQuery = true,value = "update aplforecastbot.match_results set round_id=:numberOfRound where id_game_on_soccer365ru = :gameId")
     int updateRoundId(@Param("numberOfRound") byte numberOfRound, @Param("gameId") long gameId);
+
+    @Modifying
+    @Transactional
+    @Query(nativeQuery = true,value = "update aplforecastbot.match_results set status=:status where id_game_on_soccer365ru = :gameId")
+    int updateStatus(@Param("status") byte status, @Param("gameId") long gameId);
+
+    @Modifying
+    @Transactional
+    @Query(nativeQuery = true,value = "update aplforecastbot.match_results set short_ht=:short_ht where id_game_on_soccer365ru = :gameId")
+    int updateShortHt(@Param("short_ht") String short_ht, @Param("gameId") long gameId);
+
+    @Modifying
+    @Transactional
+    @Query(nativeQuery = true,value = "update aplforecastbot.match_results set short_gt=:short_gt where id_game_on_soccer365ru = :gameId")
+    int updateShortGt(@Param("short_gt") String short_gt, @Param("gameId") long gameId);
 }

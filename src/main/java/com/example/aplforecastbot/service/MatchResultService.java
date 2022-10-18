@@ -1,8 +1,8 @@
 package com.example.aplforecastbot.service;
 import com.example.aplforecastbot.entities.Forecast;
+import com.example.aplforecastbot.entities.Forecaster;
 import com.example.aplforecastbot.entities.MatchResult;
 //import javafx.util.converter.LocalDateTimeStringConverter;
-import com.example.aplforecastbot.entities.MessageIds;
 import com.example.aplforecastbot.repository.*;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
@@ -12,16 +12,14 @@ import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 
 import java.io.IOException;
 import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -38,6 +36,23 @@ public class MatchResultService {
     private ForecastService forecastService;
     private ForecastRepository forecastRepository;
     private MessageIdsRepository msgRepository;
+    private TeamRepository teamRepository;
+
+    @Autowired
+    public void setTeamRepository(TeamRepository teamRepository) {
+        this.teamRepository = teamRepository;
+    }
+
+    private final char up = '⬆';
+    private final char right = '➡';
+    private final char down = '⬇';
+
+    @Autowired
+    public void setForecasterService(ForecasterService forecasterService) {
+        this.forecasterService = forecasterService;
+    }
+
+    private ForecasterService forecasterService;
 
     @Autowired
     public void setMsgRepository(MessageIdsRepository msgRepository) {
@@ -94,87 +109,162 @@ public class MatchResultService {
         this.writerToJpg = writerToJpg;
     }
 
-//    @Scheduled(fixedDelay = 60000)
-//    @Async
-    void check() throws IOException {
-        Timestamp currentTimeToday = new Timestamp(System.currentTimeMillis());
+//    @Scheduled(fixedDelay = 600000)
+    void UpdatePointsAndRating() throws IOException {
+
+//        Timestamp currentTimeToday = new Timestamp(System.currentTimeMillis());
+        Timestamp currentTimeToday = new Timestamp(122, 9, 13, 19, 00, 0, 0);
         System.out.println(matchResultRepository.findCurrentRound(currentTimeToday));
         byte currentRound = matchResultRepository.findCurrentRound(currentTimeToday);
+        System.out.println("Проверка! номер тура - "+matchResultRepository.findCurrentRound(currentTimeToday));
+        System.out.println("Проверка! дата начала старта тура - "+roundService.roundRepository.findById((long)currentRound).get().getDateTimeStartRound());
+        System.out.println("Проверка! текущая дата - "+currentTimeToday);
+        if(currentTimeToday.after(roundService.roundRepository.findById((long)currentRound).get().getDateTimeStartRound())){
+            List<MatchResult> matches = matchResultRepository.findAll().stream().
+                    filter(matchId->matchId.getIdGameOnSoccer365ru()<1736329).filter(matchId->matchId.getIdGameOnSoccer365ru()>1736308).collect(Collectors.toList());
+            long x = (long)(Math.random()*8000);
+            for(MatchResult m: matches){
 
+//                try {
+//                    Thread.sleep(x);
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                }
+                try {
+//                    parserService.parseAndWriteMatchResultsToDatabase(m.getIdGameOnSoccer365ru());
 
-        matchResultRepository.findAllByNumberOfRound(currentRound).forEach(s-> {
-            try {
-                parserService.parseAndWriteMatchResultsToDatabase(s.getIdGameOnSoccer365ru());
-                writerToJpg.writeInfoToJpg(s.getIdGameOnSoccer365ru());
-            } catch (IOException e) {
-                e.printStackTrace();
+                    if(m.getStatus().equalsIgnoreCase("завершен")){
+                        forecastService.setPointsToForecast(m.getIdGameOnSoccer365ru());
+                    }else{
+                        forecastService.setNullPointToForecast(m.getIdGameOnSoccer365ru());
+                    }
+                    forecasterService.setPoint(m.getIdGameOnSoccer365ru());
+                    forecasterService.setRating(m.getIdGameOnSoccer365ru());
+                    System.out.println("Выполнено обновление для матча "+m.getHt()+" - " + m.getGt());
+                }
+                catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
-        });
+
+        }else{
+            System.out.println("Начисление очков на будущий тур запрещено");
+        }
+
 
 
     }
 
-//    @Scheduled(fixedDelay = 60000)
-//    private void doTestMethods1(){
-//        List<MatchResult> matches = matchResultRepository.findAllByNumberOfRound((byte)4);
-//        for(MatchResult m:matches){
-//            forecastService.setPointsToForecast(m.getIdGameOnSoccer365ru());
-//            System.out.println("Для " + m.getIdGameOnSoccer365ru() + "выполнено обновление");
-//        }
-//    }
+
+//    void insertShortTeamNames(){
+//        matchResultRepository.findAll().forEach(match->{
+//            teamRepository.findAll().forEach(team -> {
+//                if(team.getName().equalsIgnoreCase(match.getHt())){
+//                    matchResultRepository.updateShortHt(team.getShortName(),match.getIdGameOnSoccer365ru());
+//                    System.out.println("Внесено в базу короткое имя команды " + team.getShortName() + " для команды " + match.getHt());
+//                }
+//                if(team.getName().equalsIgnoreCase(match.getGt())){
+//                    matchResultRepository.updateShortGt(team.getShortName(),match.getIdGameOnSoccer365ru());
+//                    System.out.println("Внесено в базу короткое имя команды " + team.getShortName() + " для команды " + match.getGt());
+//                }
+//            });
+//        });
+//        System.out.println("Выполнено");
+//    }//Внесение в MatchResult коротких имён команд
+
+//    @Scheduled(fixedDelay = 2400000)
+//    @Async
+    void sendMessageWhoDidNotMakeForecast(){
+        Timestamp currentTimeToday = new Timestamp(System.currentTimeMillis());
+        System.out.println(matchResultRepository.findCurrentRound(currentTimeToday));
+        byte currentRound = matchResultRepository.findCurrentRound(currentTimeToday);
+        currentRound=(byte)(currentRound+1);
+        List<Forecaster> forecasters = forecasterService.checkForecasts(currentRound);
+        if(forecasters.size()==0){
+            System.out.println("Все проставили прогнозы");
+        }
+        else {
+            for(Forecaster f: forecasters){
+                Date currentDate = new Date (roundService.roundRepository.findByNumberOfRound(currentRound).getDateTimeStartFirstMatchRound().getTime());
+                SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.YYYY");
+                SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm");
+                String date = dateFormat.format(currentDate);
+                String time = timeFormat.format(currentDate);
+
+                String text = f.getName() +", пора сделать прогноз на " + currentRound+"-й тур\nНачало "+currentRound+"-ого тура " + date + " в " + time;
+                telegramBot.sendMessage(f.getId(), text);
+                System.out.println("Прогнозист " + f.getName() + " не сделал прогноз на " + currentRound+"-й тур");
+            }
+
+            System.out.println("Выполнено");
+        }
+
+    }
 
     @Scheduled(fixedDelay = 60000)
-    private void doTestMethods() {
-//        Timestamp currentTimeToday = new Timestamp(System.currentTimeMillis());
-        Timestamp currentTimeToday = new Timestamp(122, 7, 30, 19, 30, 0, 0);
+    private void doTestMethods() throws IOException {
+        Timestamp currentTimeToday = new Timestamp(System.currentTimeMillis());
+//        Timestamp currentTimeToday = new Timestamp(122, 9, 14, 20, 00, 0, 0);
         byte currentNumberOfRound = roundService.roundRepository.findCurrentRound(currentTimeToday);
         System.out.println(currentTimeToday+ " - "+currentNumberOfRound);
+        List<MatchResult> matchesOfCurrentRound = matchResultRepository.findAllByNumberOfRound(currentNumberOfRound);
 
         if(currentNumberOfRound<=38){
             if(currentTimeToday.after(roundService.roundRepository.findById((long)currentNumberOfRound).get().getTimeMinus30())&&
             currentTimeToday.before(roundService.roundRepository.findById((long)currentNumberOfRound).get().getTimePlus30())){
                 System.out.println("Размещение поста в телеге");//Запись всех матчей в папку
-//                matchResultRepository.findAllByNumberOfRound(currentNumberOfRound).stream().forEach(s-> {
-//                    System.out.println(s.getIdGameOnSoccer365ru());
-//                    try {
-//                        writerToJpg.writeInfoToJpg(s.getIdGameOnSoccer365ru());
-//                    } catch (IOException e) {
-//                        e.printStackTrace();
-//                    }
-//                });
-
-//                forecasterRepository.findAll().forEach(forecaster -> telegramBot.
-//                        sendGroupPhoto(forecaster.getId(), directoryForSendGroupMessage+roundService.roundRepository.
-//                                findCurrentRound(currentTimeToday)));//отправка всех файлов с папки в чат
-
-                for(int i = 0;i<8;i++){
-                    DeleteMessage deleteMessage = new DeleteMessage(String.valueOf(647528114L),(msgRepository.findByForecaster_Id(647528114L).get().getPostMatchResultsMsgId()+2-i));
-                    Delete
-                    System.out.println("Для удаления - "+(msgRepository.findByForecaster_Id(647528114L).get().getPostMatchResultsMsgId()+2-i));
-
+                matchResultRepository.findAllByNumberOfRound(currentNumberOfRound).stream().forEach(s-> {
+                    System.out.println(s.getIdGameOnSoccer365ru());
                     try {
-                        telegramBot.execute(deleteMessage);
-                    } catch (TelegramApiException ex) {
-                        ex.printStackTrace();
+                        writerToJpg.writeForecastBeforeTheRoundToJpg(currentNumberOfRound);
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
-                }
-                forecasterRepository.findById(647528114L).ifPresent(forecaster -> telegramBot.
-                        sendGroupPhoto(forecaster.getId(), directoryForSendGroupMessage+roundService.roundRepository.
-                                findCurrentRound(currentTimeToday)));//отправка всех файлов с папки в чат
+                });
 
-
-
-
-                MessageIds messageIds = new MessageIds();
-                messageIds.setForecaster(forecasterRepository.findById(647528114L).get());
-                messageIds.setPostMatchResultsMsgId(msgRepository.findMaxId());
-                messageIds.setId(msgRepository.findByForecaster_Id(647528114L).get().getId());
-                messageIds.setForecastNumbersMsgId(msgRepository.findByForecaster_Id(647528114L).get().getForecastNumbersMsgId());
-                messageIds.setForecastMsgId(msgRepository.findByForecaster_Id(647528114L).get().getForecastMsgId());
-                msgRepository.save(messageIds);
+                forecasterRepository.findAll().forEach(forecaster -> telegramBot.
+                        sendSinglePhoto(forecaster.getId(), directoryForSendGroupMessage+roundService.roundRepository.
+                                findCurrentRound(currentTimeToday)+"\\"+"forecast.jpg","Прогнозы на "+ currentNumberOfRound+"-й тур"));//отправка всех файлов с папки в чат
 
                 System.out.println("Выполнено Размещение поста в телеге");//Запись всех матчей в папку
             }//Размещение поста перед туром
+
+            if(matchesOfCurrentRound.stream().filter(matches->matches.getStatus().equalsIgnoreCase("завершен")).count()==10){
+
+                writerToJpg.writeForecastResultToJpg(currentNumberOfRound);
+                //**********************
+//                String finalText1 = "Результаты " + currentNumberOfRound + "-ого тура\n#результаты_матчей_тура_" +currentNumberOfRound;
+//                forecasterRepository.findAll().stream().forEach(fr->telegramBot.
+//                        sendGroupFiles(fr.getId(),directoryForSendGroupMessage+roundService.roundRepository.
+//                                findCurrentRound(currentTimeToday),finalText1));
+//
+//                String finalText2= "Результаты " + currentNumberOfRound + "-ого тура\n#результаты_прогнозов_тура_" +currentNumberOfRound;
+//                forecasterRepository.findAll().stream().forEach(fr->telegramBot.
+//                        sendSinglePhoto(fr.getId(),directoryForSendGroupMessage+roundService.roundRepository.
+//                                findCurrentRound(currentTimeToday)+"\\"+"result.jpg",finalText2));
+//
+//                String finalText3= "Результаты " + currentNumberOfRound + "-ого тура";
+//                forecasterRepository.findAll().stream().forEach(fr->telegramBot.
+//                        sendSingleDocument(fr.getId(),directoryForSendGroupMessage+roundService.roundRepository.
+//                                findCurrentRound(currentTimeToday)+"\\"+"result.jpg",finalText3+ "\n#документ_результаты_прогнозов_тура_" +currentNumberOfRound));
+//                System.out.println("Выполнено");
+                //*****************************
+
+//                String finalText1 = "Результаты " + currentNumberOfRound + "-ого тура\n#результаты_матчей_тура_" +currentNumberOfRound;
+//                telegramBot.sendGroupFiles(647528114,directoryForSendGroupMessage+roundService.roundRepository.
+//                                findCurrentRound(currentTimeToday),finalText1);
+//
+//                String finalText2= "Результаты " + currentNumberOfRound + "-ого тура\n#результаты_прогнозов_тура_" +currentNumberOfRound;
+//                telegramBot.sendSinglePhoto(647528114,directoryForSendGroupMessage+roundService.roundRepository.
+//                                findCurrentRound(currentTimeToday)+"\\"+"result.jpg",finalText2);
+//
+//                String finalText3= "Результаты " + currentNumberOfRound + "-ого тура";
+//                telegramBot.sendSingleDocument(647528114,directoryForSendGroupMessage+roundService.roundRepository.
+//                                findCurrentRound(currentTimeToday)+"\\"+"result.jpg",finalText3+ "\n#документ_результаты_прогнозов_тура_" +currentNumberOfRound);
+//                System.out.println("Выполнено");
+            }
+
+
             long count = matchResultRepository.findAllByNumberOfRound(currentNumberOfRound).stream().
                     filter(matchResult ->currentTimeToday.after(matchResult.getDateOfMatch())).filter(matchResult -> !matchResult.getStatus().equals("завершен")).count();
             System.out.println("Количество игр на данный момент - " + count);
@@ -190,67 +280,164 @@ public class MatchResultService {
                             e.printStackTrace();
                         }
                             try {
+                                MatchResult matchResultBefore = matchResultRepository.findById(s1.getIdGameOnSoccer365ru()).get();
                                 parserService.parseAndWriteMatchResultsToDatabase(s1.getIdGameOnSoccer365ru());
-                                forecastService.setPointsToForecast(s1.getIdGameOnSoccer365ru());
-                            } catch (IOException e) {
+                                MatchResult matchResultAfter = matchResultRepository.findById(s1.getIdGameOnSoccer365ru()).get();
+                                /**Матч завершен*/
+                                if(matchResultAfter.getStatus().equalsIgnoreCase("завершен")){
+                                    forecastService.setPointsToForecast(s1.getIdGameOnSoccer365ru());
+                                    forecasterService.setPoint(s1.getIdGameOnSoccer365ru());
+                                    forecasterService.setRating(s1.getIdGameOnSoccer365ru());
+                                    sendMessageWithResultMatch(forecasterRepository.findAll(),s1,currentTimeToday);
+
+                                    if(matchesOfCurrentRound.stream().filter(matches->matches.getStatus().equalsIgnoreCase("завершен")).count()==10){
+                                        String finalText = "Результаты " + currentNumberOfRound + "-ого тура\n#результаты_матчей_тура_" +currentNumberOfRound;
+                                        writerToJpg.writeForecastResultToJpg(currentNumberOfRound);
+                                        forecasterRepository.findAll().stream().forEach(fr->telegramBot.
+                                                sendGroupFiles(fr.getId(),directoryForSendGroupMessage+roundService.roundRepository.
+                                                        findCurrentRound(currentTimeToday),finalText));
+
+                                        forecasterRepository.findAll().stream().forEach(fr->telegramBot.
+                                                sendSinglePhoto(fr.getId(),directoryForSendGroupMessage+roundService.roundRepository.
+                                                        findCurrentRound(currentTimeToday)+"\\"+"result.jpg",finalText+ "\n#результаты_тура_" +currentNumberOfRound));
+
+                                        forecasterRepository.findAll().stream().forEach(fr->telegramBot.
+                                                sendSingleDocument(fr.getId(),directoryForSendGroupMessage+roundService.roundRepository.
+                                                        findCurrentRound(currentTimeToday)+"\\"+"result.jpg",finalText+ "\n#документ_результаты_тура_" +currentNumberOfRound));
+                                        System.out.println("Выполнено");
+                                    }
+                                }else{
+                                    /**Матч не завершен*/
+                                    if(matchResultBefore.getHtGoals()==matchResultAfter.getHtGoals()
+                                            &&matchResultBefore.getGtGoals()==matchResultAfter.getGtGoals()){
+
+                                    }else{
+
+                                        List<Forecaster> forecastersBefore = forecasterRepository.findAll();
+                                        System.out.println("Проверка! before - " + forecastersBefore.get(0).getId() +" - "+ forecastersBefore.get(0).getRating());
+                                        forecastService.setPointsToForecast(s1.getIdGameOnSoccer365ru());
+                                        forecasterService.setPoint(s1.getIdGameOnSoccer365ru());
+                                        forecasterService.setRating(s1.getIdGameOnSoccer365ru());
+                                        List<Forecaster> forecastersAfter = forecasterRepository.findAll();
+                                        System.out.println("Проверка! after - " + forecastersAfter.get(0).getId() +" - "+ forecastersAfter.get(0).getRating());
+                                        for(Forecaster f1:forecastersBefore){
+                                            for(Forecaster f2:forecastersAfter){
+                                                if(Objects.equals(f1.getId(), f2.getId())){
+                                                    if(f2.getRating()>f1.getRating()){
+                                                        forecasterRepository.updateArrow(down,f2.getId());
+                                                    }else if(f2.getRating()<f1.getRating()){
+                                                        forecasterRepository.updateArrow(up,f2.getId());
+                                                    }else{
+                                                        forecasterRepository.updateArrow(right,f2.getId());
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        writerToJpg.writeInfoToJpg(s1.getIdGameOnSoccer365ru());
+                                        sendMessageWithResultMatch(forecasterRepository.findAll(),s1,currentTimeToday);
+                                    }
+                                }
+
+
+
+                            }
+                            catch (IOException e) {
                                 e.printStackTrace();
                             }
 
             });
 
-        }else{
+
+        }
+        else{
             System.out.println("Сезон завершен");
         }
 
     }
 
+    private void sendMessageWithResultMatch(List<Forecaster> forecasters,MatchResult matchResult, Timestamp currentTimeToday) {
+        String text = "";
+        List<MatchResult> allMatchesOfRound = matchResultRepository.findAllByNumberOfRound(roundService.roundRepository.findCurrentRound(currentTimeToday));
+        for (Forecaster f : forecasters.stream().sorted((o1, o2) -> o1.getRating() - o2.getRating()).collect(Collectors.toList())) {
+
+            List<Forecast> forecasts = f.getForecasts();
+            byte forecastHt;
+            byte forecastGt;
+            int forecastPoint;
+            int pointsOfRound=0;
+            Forecast forecastFromForecaster = forecastRepository.findByMatchResult_IdGameOnSoccer365ruAndForecaster_Id(matchResult.getIdGameOnSoccer365ru(), f.getId());
+            forecastHt = forecastFromForecaster.getForecastHomeTeamGoals();
+            forecastGt = forecastFromForecaster.getForecastGuestTeamGoals();
+            forecastPoint = forecastFromForecaster.getPoint();
+            for(MatchResult matchResult1:allMatchesOfRound){
+                pointsOfRound+=forecastRepository.findByMatchResult_IdGameOnSoccer365ruAndForecaster_Id(matchResult1.getIdGameOnSoccer365ru(), f.getId()).getPoint();
+            }
+
+            if (forecastPoint == 0) {
+                text += f.getRating() + ". " + f.getArrow() + " " + String.format("%02d", f.getPoints()) + " | "+ String.format("%02d", pointsOfRound) + " | "+ f.getName() + " | "
+                        + forecastHt + ":" + forecastGt + " | " + forecastPoint + "\n";
+            } else {
+                text += f.getRating() + ". " + f.getArrow() + " " + String.format("%02d", f.getPoints()) + " | "+ String.format("%02d", pointsOfRound) + " | "+ f.getName() + " | "
+                        + forecastHt + ":" + forecastGt + " | +" + forecastPoint + "\n";
+            }
 
 
-//    @Scheduled(fixedDelay = 14400000)
+        }
+        String finalText = text;
+        forecasterRepository.findAll().stream().forEach(frks -> telegramBot.
+                sendSinglePhoto(frks.getId(), directoryForSendGroupMessage + roundService.roundRepository.
+                        findCurrentRound(currentTimeToday) + "\\" + matchResult.getHt() + "-" + matchResult.getGt() + ".jpg", finalText));
+    }
+
+
+
+    //    @Scheduled(fixedDelay = 14400000)
     private void updateDateTimeMatchResults() throws IOException {
-//        Timestamp startTime = new Timestamp(System.currentTimeMillis());
-//        byte startIndex = matchResultRepository.findCurrentRound(startTime);
-//        byte endIndex = (byte) (startIndex+5);
-//        if(endIndex>38){endIndex = 38;}
-//        System.out.println("Обновление дат матчей с "+startIndex+ " тура по "+endIndex);
-//
-//        for(byte i = startIndex;i<endIndex;i++){
-//            matchResultRepository.findAllByNumberOfRound(i).stream().forEach(s-> {
-//                try {
-//                    System.out.println("******");
-//                    Thread.sleep((long)(Math.random()*23000)+5000);
-//                    parserService.parseAndWriteMatchDateToDatabase(s.getIdGameOnSoccer365ru());
-//                    System.out.println("Обновлена дата матча "+ s.getHt()+"-"+s.getGt());
-//                } catch (IOException e) {
-//                    log.error("Ошибка чтения сайта ");
-//                } catch (InterruptedException e) {
-//                    log.error("Ошибка чтения сайта " + LocalDateTime.now());
-//                }
-//            });
-//        }
+        Timestamp startTime = new Timestamp(System.currentTimeMillis());
+        byte startIndex = matchResultRepository.findCurrentRound(startTime);
+        byte endIndex = (byte) (startIndex+2);
+        if(endIndex>38){endIndex = 38;}
+        System.out.println("Обновление дат матчей с "+startIndex+ " тура по "+endIndex);
 
-        AtomicInteger count = new AtomicInteger(1);
-            matchResultRepository.findAll().stream().filter(s->s.getIdGameOnSoccer365ru()<1736249).forEach(s-> {
+        for(byte i = startIndex;i<endIndex;i++){
+            matchResultRepository.findAllByNumberOfRound(i).stream().forEach(s-> {
                 try {
-//                    System.out.println(roundService.roundRepository.findCurrentRound(new Timestamp(System.currentTimeMillis())));
-                    long x = (long)(Math.random()*23000)+5000;
                     System.out.println("******");
-                    Thread.sleep(x);
-                    parserService.parseAndWriteMatchResultsToDatabase(s.getIdGameOnSoccer365ru());
-//                    parserService.parseAndWriteMatchDateToDatabase(s.getIdGameOnSoccer365ru());
-                    writerToJpg.writeInfoToJpg(s.getIdGameOnSoccer365ru());
-                    System.out.println("Обновлена дата матча "+ s.getHt()+"-"+s.getGt()+" id - "+s.getIdGameOnSoccer365ru());
-                    System.out.println("Обновлено " + count + " записей\n Затрачено времени - " + (double)(x/1000) + " секунд");
-
-                    count.getAndIncrement();
-                }
-                catch (IOException e) {
+                    Thread.sleep((long)(Math.random()*8000)+5000);
+                    parserService.parseAndWriteMatchDateToDatabase(s.getIdGameOnSoccer365ru());
+                    System.out.println("Обновлена дата матча "+ s.getHt()+"-"+s.getGt());
+                } catch (IOException e) {
                     log.error("Ошибка чтения сайта ");
-                }
-                catch (InterruptedException e) {
+                } catch (InterruptedException e) {
                     log.error("Ошибка чтения сайта " + LocalDateTime.now());
                 }
             });
+        }
+
+
+
+//        AtomicInteger count = new AtomicInteger(1);
+//            matchResultRepository.findAll().stream().filter(s->s.getIdGameOnSoccer365ru()<1736249).forEach(s-> {
+//                try {
+////                    System.out.println(roundService.roundRepository.findCurrentRound(new Timestamp(System.currentTimeMillis())));
+//                    long x = (long)(Math.random()*23000)+5000;
+//                    System.out.println("******");
+//                    Thread.sleep(x);
+//                    parserService.parseAndWriteMatchResultsToDatabase(s.getIdGameOnSoccer365ru());
+////                    parserService.parseAndWriteMatchDateToDatabase(s.getIdGameOnSoccer365ru());
+//                    writerToJpg.writeInfoToJpg(s.getIdGameOnSoccer365ru());
+//                    System.out.println("Обновлена дата матча "+ s.getHt()+"-"+s.getGt()+" id - "+s.getIdGameOnSoccer365ru());
+//                    System.out.println("Обновлено " + count + " записей\n Затрачено времени - " + (double)(x/1000) + " секунд");
+//
+//                    count.getAndIncrement();
+//                }
+//                catch (IOException e) {
+//                    log.error("Ошибка чтения сайта ");
+//                }
+//                catch (InterruptedException e) {
+//                    log.error("Ошибка чтения сайта " + LocalDateTime.now());
+//                }
+//            });
 
 
 

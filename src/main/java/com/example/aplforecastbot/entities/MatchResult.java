@@ -1,18 +1,22 @@
 package com.example.aplforecastbot.entities;
 
-import lombok.Data;
-import org.hibernate.annotations.*;
+import lombok.*;
+import org.hibernate.Hibernate;
+import org.hibernate.annotations.Cascade;
+import org.hibernate.annotations.DynamicUpdate;
+import org.hibernate.annotations.LazyCollection;
+import org.hibernate.annotations.LazyCollectionOption;
 
 import javax.persistence.*;
-import javax.persistence.CascadeType;
-import javax.persistence.Entity;
-import javax.persistence.Table;
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @DynamicUpdate
-@Data
+@Getter
+@Setter
+@ToString
+@RequiredArgsConstructor
 @Entity()
 @Table(name = "matchResults")
 public class MatchResult {
@@ -24,6 +28,8 @@ public class MatchResult {
     private Timestamp dateOfMatch;
     private String ht;
     private String gt;
+    private String shortHt;
+    private String shortGt;
     private byte htGoals;
     private byte gtGoals;
     private byte htYellowCards;
@@ -53,6 +59,7 @@ public class MatchResult {
     @OneToMany(mappedBy = "matchResult")
     @Cascade(org.hibernate.annotations.CascadeType.DELETE)
     @LazyCollection(LazyCollectionOption.FALSE)
+    @ToString.Exclude
     private List<Event> events;
 
 
@@ -63,6 +70,19 @@ public class MatchResult {
     @OneToMany(mappedBy = "matchResult")
     @Cascade(org.hibernate.annotations.CascadeType.DELETE)
     @LazyCollection(LazyCollectionOption.FALSE)
+    @ToString.Exclude
     private List<Forecast> forecasts;
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
+        MatchResult that = (MatchResult) o;
+        return idGameOnSoccer365ru != null && Objects.equals(idGameOnSoccer365ru, that.idGameOnSoccer365ru);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

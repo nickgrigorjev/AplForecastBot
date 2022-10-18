@@ -11,6 +11,8 @@ public interface MessageIdsRepository extends JpaRepository<MessageIds,Long> {
     Optional<MessageIds> findByForecaster_Id(Long forecaster_id);
     Optional<MessageIds> findByForecastMsgId(Long forecasterMsg_id);
     Optional<MessageIds> findByForecastNumbersMsgId(Long forecasterMsg_id);
-    @Query("select max(m.forecastMsgId), max(m.forecastNumbersMsgId) from MessageIds m")
+
+
+    @Query(nativeQuery = true,value = "select greatest(max(forecast_msg_id), max(post_match_results_msg_id), max(forecast_numbers_msg_id))  from aplforecastbot.message_ids")
     int findMaxId();
 }

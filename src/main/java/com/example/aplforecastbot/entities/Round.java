@@ -1,7 +1,8 @@
 package com.example.aplforecastbot.entities;
 
 
-import lombok.Data;
+import lombok.*;
+import org.hibernate.Hibernate;
 import org.hibernate.annotations.Cascade;
 import org.hibernate.annotations.LazyCollection;
 import org.hibernate.annotations.LazyCollectionOption;
@@ -9,9 +10,13 @@ import org.hibernate.annotations.LazyCollectionOption;
 import javax.persistence.*;
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.Objects;
 
 @Entity
-@Data
+@Getter
+@Setter
+@ToString
+@RequiredArgsConstructor
 @Table(name = "round")
 public class Round {
     @Id
@@ -37,10 +42,25 @@ public class Round {
 
 
     @OneToMany(mappedBy = "round")
-    @Cascade(org.hibernate.annotations.CascadeType.DELETE)
+    @Cascade(org.hibernate.annotations.CascadeType.ALL)
     @LazyCollection(LazyCollectionOption.FALSE)
+    @ToString.Exclude
     List<MatchResult> matchResults;
 
-    @OneToMany(mappedBy = "round")
+    @OneToMany(mappedBy = "round",cascade = CascadeType.ALL)
+    @ToString.Exclude
     private List<Forecaster> forecasters;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
+        Round round = (Round) o;
+        return id != null && Objects.equals(id, round.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

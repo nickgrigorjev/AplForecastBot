@@ -9,13 +9,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
+import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageCaption;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageMedia;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
@@ -26,7 +27,6 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMar
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException;
 
 import java.io.*;
 import java.io.File;
@@ -40,6 +40,9 @@ import java.util.*;
 public class TelegramBot extends TelegramLongPollingBot {
     private static final String directoryForSendGroupMessage = "C:\\Users\\Николай\\Desktop\\Новая папка (2)";
     private static final String directoryForSingleSendMessage = "C:\\Users\\Николай\\Downloads\\c7088df551317fb2915a5f15f10ae8ee.jpg";
+    private static final char up = '⬆';
+    private static final char right = '➡';
+    private static final char down = '⬇';
 
     final BotConfig config;
 //    private TelegramBot(BotConfig config){
@@ -70,6 +73,12 @@ public class TelegramBot extends TelegramLongPollingBot {
     private ForecastRepository forecastRepository;
     private ForecasterRepository forecasterRepository;
     private MessageIdsRepository msgRepository;
+    private ForecasterService forecasterService;
+
+    @Autowired
+    public void setForecasterService(ForecasterService forecasterService) {
+        this.forecasterService = forecasterService;
+    }
 
     @Autowired
     public void setMsgRepository(MessageIdsRepository msgRepository) {
@@ -98,20 +107,23 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
 
-    static final String HELP_TEXT = "This bot is created to demonstrate Spring capabilities.\n\n" +
-            "You can execute commands from the main menu on the left or by typing a command:\n\n" +
-            "Type /start to see a welcome message \n\n"+
-            "Type /mydata to see data stored about yourself\n\n"+
-            "Type /help to see this message again";
+    static final String HELP_TEXT = "Этот бот создан чтобы автоматизировать конкурс прогнозов матчей АПЛ.\n\n" +
+            "Вы можете выбрать команды из меню, либо отправить боту сообщения содержащие следующие команды:\n\n" +
+            "Нажмите /start чтобы увидеть приветственное сообщение и начать работу с ботом \n\n"+
+            "Нажмите /rule чтобы прочитать правила начисления очков\n\n"+
+            "Нажмите /help чтобы увидеть это сообщение снова";
+
+    static final String RULE_TEXT = "Задача каждого участника просто ставить предполагаемый им счет на каждый матч очередного тура лиги." +
+            "\nЗа точный счет начисляется 9 очков.\nЕсли угадана разница (пример: Ваша ставка 3:1, а реальный счет 2:0 или Ваша ставка 4:0, а реальный счет 5:1)" +
+            "\nто начисляется 4 очка.\nТакже за угаданную ничью дается 4 очка.\nЗа угаданного победителя дается 1 очко.";
 
     public TelegramBot(BotConfig config){
         this.config = config;
         List<BotCommand> listOfCommands = new ArrayList<>();
-        listOfCommands.add(new BotCommand("/start","get a welcome message"));
-        listOfCommands.add(new BotCommand("/mydata","get your data stored"));
-        listOfCommands.add(new BotCommand("/deletedata","delete my data"));
-        listOfCommands.add(new BotCommand("/help","info how tp use this bot"));
-        listOfCommands.add(new BotCommand("/settings","set your preferences"));
+        listOfCommands.add(new BotCommand("/start","Начало работы бота"));
+        listOfCommands.add(new BotCommand("/rule","Правила начисления очков"));
+        listOfCommands.add(new BotCommand("/help","Как использовать бота"));
+//        listOfCommands.add(new BotCommand("/settings","set your preferences"));
         try{
             this.execute(new SetMyCommands(listOfCommands,new BotCommandScopeDefault(),null));
         }catch (TelegramApiException e){
@@ -138,92 +150,114 @@ public class TelegramBot extends TelegramLongPollingBot {
 //                    } catch (IOException e) {
 //                        e.printStackTrace();
 //                    }
-                    if(!msgRepository.findByForecaster_Id(update.getMessage().getChatId()).isPresent()){
-                        MessageIds messageIds = new MessageIds();
-                        messageIds.setForecastMsgId(update.getMessage().getMessageId());
-                        messageIds.setForecastNumbersMsgId(0);
-                        messageIds.setId(msgRepository.count()+1);
-                        messageIds.setPostMatchResultsMsgId(0);
-                        messageIds.setForecaster(forecasterRepository.findById(update.getMessage().getChatId()).get());
-                        msgRepository.save(messageIds);
-
-                        DeleteMessage deleteMessage = new DeleteMessage(String.valueOf(update.getMessage().getChatId()),update.getMessage().getMessageId());
-                        try {
-                            execute(deleteMessage);
-                        } catch (TelegramApiException e) {
-                            e.printStackTrace();
-                        }
-
-                    }else{
-
-                        DeleteMessage deleteMessage = new DeleteMessage(String.valueOf(update.getMessage().getChatId()),msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getForecastMsgId());
-                        try {
-                            execute(deleteMessage);
-                        } catch (TelegramApiException e) {
-                            e.printStackTrace();
-                        }
-
-                        MessageIds messageIds = new MessageIds();
-                        messageIds.setForecastMsgId(msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getForecastMsgId()+1);
-                        messageIds.setForecastNumbersMsgId(msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getForecastNumbersMsgId());
-                        messageIds.setId(msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getId());
-                        messageIds.setPostMatchResultsMsgId(msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getPostMatchResultsMsgId());
-                        messageIds.setForecaster(forecasterRepository.findById(update.getMessage().getChatId()).get());
-                        msgRepository.save(messageIds);
-
-
-                        deleteMessage = new DeleteMessage(String.valueOf(update.getMessage().getChatId()),update.getMessage().getMessageId());
-                        try {
-                            execute(deleteMessage);
-                        } catch (TelegramApiException ex) {
-                            ex.printStackTrace();
-                        }
-                    }
                     registerUser(update.getMessage());
-                    startCommandReceived(chatId,update.getMessage().getChat().getFirstName());
-                    if(!msgRepository.findByForecaster_Id(update.getMessage().getChatId()).isPresent()){
-                        MessageIds messageIds = new MessageIds();
-                        messageIds.setForecastMsgId(update.getMessage().getMessageId());
-                        messageIds.setForecastNumbersMsgId(0);
-                        messageIds.setId(msgRepository.count()+1);
-                        messageIds.setPostMatchResultsMsgId(0);
-                        messageIds.setForecaster(forecasterRepository.findById(update.getMessage().getChatId()).get());
-                        msgRepository.save(messageIds);
 
-                        DeleteMessage deleteMessage = new DeleteMessage(String.valueOf(update.getMessage().getChatId()),update.getMessage().getMessageId());
-                        try {
-                            execute(deleteMessage);
-                        } catch (TelegramApiException e) {
-                            e.printStackTrace();
+                    try{
+
+                        if(!msgRepository.findByForecaster_Id(update.getMessage().getChatId()).isPresent()){
+                            MessageIds messageIds = new MessageIds();
+                            messageIds.setForecastMsgId(update.getMessage().getMessageId());
+                            messageIds.setForecastNumbersMsgId(0);
+                            messageIds.setId(msgRepository.count()+1);
+                            messageIds.setPostMatchResultsMsgId(0);
+                            messageIds.setForecaster(forecasterRepository.findById(update.getMessage().getChatId()).get());
+                            msgRepository.save(messageIds);
+
+                            DeleteMessage deleteMessage = new DeleteMessage(String.valueOf(update.getMessage().getChatId()),update.getMessage().getMessageId());
+                            try {
+                                execute(deleteMessage);
+                            } catch (TelegramApiException e) {
+                                e.printStackTrace();
+                            }
+
+                        }else{
+
+                            DeleteMessage deleteMessage = new DeleteMessage(String.valueOf(update.getMessage().getChatId()),msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getForecastMsgId());
+                            try {
+                                execute(deleteMessage);
+                            } catch (TelegramApiException e) {
+                                e.printStackTrace();
+                            }
+
+                            MessageIds messageIds = new MessageIds();
+                            messageIds.setForecastMsgId(msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getForecastMsgId()+1);
+                            messageIds.setForecastNumbersMsgId(msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getForecastNumbersMsgId());
+                            messageIds.setId(msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getId());
+                            messageIds.setPostMatchResultsMsgId(msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getPostMatchResultsMsgId());
+                            messageIds.setForecaster(forecasterRepository.findById(update.getMessage().getChatId()).get());
+                            msgRepository.save(messageIds);
+
+
+                            deleteMessage = new DeleteMessage(String.valueOf(update.getMessage().getChatId()),update.getMessage().getMessageId());
+                            try {
+                                execute(deleteMessage);
+                            } catch (TelegramApiException ex) {
+                                ex.printStackTrace();
+                            }
                         }
 
-                    }else{
-
-                        DeleteMessage deleteMessage = new DeleteMessage(String.valueOf(update.getMessage().getChatId()),msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getForecastMsgId());
-                        try {
-                            execute(deleteMessage);
-                        } catch (TelegramApiException e) {
-                            e.printStackTrace();
-                        }
-
-                        MessageIds messageIds = new MessageIds();
-                        messageIds.setForecastMsgId(msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getForecastMsgId()+1);
-                        messageIds.setForecastNumbersMsgId(msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getForecastNumbersMsgId());
-                        messageIds.setId(msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getId());
-                        messageIds.setPostMatchResultsMsgId(msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getPostMatchResultsMsgId());
-                        messageIds.setForecaster(forecasterRepository.findById(update.getMessage().getChatId()).get());
-                        msgRepository.save(messageIds);
-
-                        deleteMessage = new DeleteMessage(String.valueOf(update.getMessage().getChatId()),update.getMessage().getMessageId());
-                        try {
-                            execute(deleteMessage);
-                        } catch (TelegramApiException ex) {
-                            ex.printStackTrace();
-                        }
+                    }catch (NoSuchElementException e){
+                        log.error("Пользователь пока не зарегистрировался в качестве прогнозиста" + new Timestamp(System.currentTimeMillis()));
                     }
+
+                    System.out.println("Проверка! - "+update.getMessage().getChat().getFirstName());
+                    System.out.println("Проверка! - "+chatId);
+                    startCommandReceived(chatId,update.getMessage().getChat().getFirstName());
+
+                    try{
+
+                        if(!msgRepository.findByForecaster_Id(update.getMessage().getChatId()).isPresent()){
+                            MessageIds messageIds = new MessageIds();
+                            messageIds.setForecastMsgId(update.getMessage().getMessageId());
+                            messageIds.setForecastNumbersMsgId(0);
+                            messageIds.setId(msgRepository.count()+1);
+                            messageIds.setPostMatchResultsMsgId(0);
+                            messageIds.setForecaster(forecasterRepository.findById(update.getMessage().getChatId()).get());
+                            msgRepository.save(messageIds);
+
+                            DeleteMessage deleteMessage = new DeleteMessage(String.valueOf(update.getMessage().getChatId()),update.getMessage().getMessageId());
+                            try {
+                                execute(deleteMessage);
+                            } catch (TelegramApiException e) {
+                                e.printStackTrace();
+                            }
+
+                        }else{
+
+                            DeleteMessage deleteMessage = new DeleteMessage(String.valueOf(update.getMessage().getChatId()),msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getForecastMsgId());
+                            try {
+                                execute(deleteMessage);
+                            } catch (TelegramApiException e) {
+                                e.printStackTrace();
+                            }
+
+                            MessageIds messageIds = new MessageIds();
+                            messageIds.setForecastMsgId(msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getForecastMsgId()+1);
+                            messageIds.setForecastNumbersMsgId(msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getForecastNumbersMsgId());
+                            messageIds.setId(msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getId());
+                            messageIds.setPostMatchResultsMsgId(msgRepository.findByForecaster_Id(update.getMessage().getChatId()).get().getPostMatchResultsMsgId());
+                            messageIds.setForecaster(forecasterRepository.findById(update.getMessage().getChatId()).get());
+                            msgRepository.save(messageIds);
+
+
+                            deleteMessage = new DeleteMessage(String.valueOf(update.getMessage().getChatId()),update.getMessage().getMessageId());
+                            try {
+                                execute(deleteMessage);
+                            } catch (TelegramApiException ex) {
+                                ex.printStackTrace();
+                            }
+                        }
+
+                    }catch (NoSuchElementException e){
+                        log.error("Пользователь пока не зарегистрировался в качестве прогнозиста" + new Timestamp(System.currentTimeMillis()));
+                    }
+
                     break;
                 case "/help":
                     sendMessage(chatId,HELP_TEXT);
+                    break;
+                case "/rule":
+                    sendMessage(chatId,RULE_TEXT);
                     break;
 
                 case "statistic":
@@ -413,7 +447,24 @@ public class TelegramBot extends TelegramLongPollingBot {
                 case "Результаты":
                     System.out.println("Message *********");
                     break;
-
+                case "Проверка":
+                    Timestamp currentTimeToday = new Timestamp(System.currentTimeMillis());
+                    System.out.println(matchResultRepository.findCurrentRound(currentTimeToday));
+                    byte currentRound = matchResultRepository.findCurrentRound(currentTimeToday);
+                    currentRound=(byte)(currentRound+1);
+                    String text = "Проставлено прогнозов на "+currentRound+"-й тур " + (forecasterRepository.findAll().size()- forecasterService.checkForecasts(currentRound).size())+
+                            " из " + forecasterRepository.findAll().size();
+                    System.out.println(forecasterRepository.findAll().size()+(forecasterRepository.findAll().size()- forecasterService.checkForecasts(currentRound).size()));
+//                    System.out.println(forecasterRepository.findAll().size()+(forecasterRepository.findAll().size()- forecasterService.checkForecasts(currentRound).size()));
+                    if(forecasterRepository.findAll().size()!=(forecasterRepository.findAll().size()- forecasterService.checkForecasts(currentRound).size())){
+                        text="";
+                        for(Forecaster f:forecasterService.checkForecasts(currentRound)){
+                            text += f.getName()+", \n";
+                        }
+                        text.substring(0,(text.length()-2));
+                    }
+                        sendMessage(647528114,text);
+                    break;
 
                 default:sendMessage(chatId,"Извини, Коля меня ещё пока не научил обрабатывать такие запросы");
             }
@@ -624,9 +675,24 @@ public class TelegramBot extends TelegramLongPollingBot {
             var chat = msg.getChat();
             User user = new User();
             user.setChatId(chatId);
-            user.setUserName(chat.getUserName());
-            user.setFirstName(chat.getFirstName());
-            user.setLastName(chat.getLastName());
+            if(chat.getUserName() == null){
+                user.setUserName("User"+(userRepository.findAll().size()+1));
+            }else{
+                user.setUserName(chat.getUserName());
+            }
+
+            if(chat.getFirstName() == null){
+                user.setFirstName("FirstName"+(userRepository.findAll().size()+1));
+            }else{
+                user.setFirstName(chat.getFirstName());
+            }
+
+            if(chat.getLastName() == null){
+                user.setLastName("LastName"+(userRepository.findAll().size()+1));
+            }else{
+                user.setLastName(chat.getLastName());
+            }
+
             user.setRegisteredAt(new Timestamp(System.currentTimeMillis()));
             userRepository.save(user);
             log.info("user saved: " + user);
@@ -641,6 +707,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             forecaster.setName(chat.getFirstName());
             forecaster.setPoints(0);
             forecaster.setRating(0);
+            forecaster.setArrow(right);
             forecaster.setRegisteredAt(new Timestamp(System.currentTimeMillis()));
 
             forecasterRepository.save(forecaster);
@@ -651,7 +718,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     private void startCommandReceived(long chatId,String name){
 
 //        String answer = "Hi, " + name +", nice to meet you";
-        String answer = EmojiParser.parseToUnicode("Привет, " + name  + " \uD83D\uDD96");
+        String answer = EmojiParser.parseToUnicode("Привет, " + name  + " \uD83D\uDD96 ");
         log.info("Replied to user " + name);
         sendMessage(chatId,answer);
     }
@@ -672,17 +739,29 @@ public class TelegramBot extends TelegramLongPollingBot {
         List<KeyboardRow> keyboardRows = new ArrayList<>();
         KeyboardRow row = new KeyboardRow();
         if(forecasterRepository.existsById(chatId)){
-            row.add("Мой прогноз");
+//            row.add("Мой прогноз");
         }
         row.add("statistic");
         keyboardRows.add(row);
         row = new KeyboardRow();
-        if(!forecasterRepository.existsById(chatId)){
-            row.add("Регистрация");
+
+        try{
+            if(!forecasterRepository.existsById(chatId)){
+                row.add("Регистрация");
+            }
+        }catch (NoSuchElementException e){
+            log.error("Пользователь не зарегистрировался в качестве прогнозиста " + new Timestamp(System.currentTimeMillis()));
         }
-        row.add("delete my data");
-        if(forecasterRepository.findById(chatId).get().getId()==647528114L){
-            row.add("Удалить сообщения");
+
+//        row.add("delete my data");
+
+        try{
+            if(forecasterRepository.findById(chatId).get().getId()==647528114){
+                row.add("Удалить сообщения");
+                row.add("Проверка");
+            }
+        }catch (NoSuchElementException e){
+            log.error("Пользователь не зарегистрировался в качестве прогнозиста " + new Timestamp(System.currentTimeMillis()));
         }
         keyboardRows.add(row);
         keyboardMarkup.setKeyboard(keyboardRows);
@@ -698,11 +777,12 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     public void sendInlineKeyBoardMessage(long chatId) {
         Timestamp currentTime = new Timestamp(System.currentTimeMillis());
-//        Timestamp currentTime = new Timestamp(122, 7, 29, 12, 30, 0, 0);
+//        Timestamp currentTime = new Timestamp(122, 9, 13, 12, 30, 0, 0);
         List<MatchResult> matchResultList = new ArrayList<>(matchResultRepository.findAllByNumberOfRound((byte) (roundRepository.findCurrentRound(currentTime)+1)));
 //        List<MatchResult> matchResultList = new ArrayList<>(matchResultRepository.findAllByNumberOfRound(roundRepository.findCurrentRound(currentTime)));
         SendMessage message = new SendMessage();
-//        EditMessageReplyMarkup editMessageReplyMarkup = new EditMessageReplyMarkup();
+        EditMessageReplyMarkup editMessageReplyMarkup = new EditMessageReplyMarkup();
+
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         InlineKeyboardButton inlineKeyboardButton1 = new InlineKeyboardButton();
@@ -1146,7 +1226,8 @@ public class TelegramBot extends TelegramLongPollingBot {
 
 
         inlineKeyboardMarkup.setKeyboard(rowList);
-//        editMessageReplyMarkup.setReplyMarkup(inlineKeyboardMarkup);
+        editMessageReplyMarkup.setReplyMarkup(inlineKeyboardMarkup);
+        editMessageReplyMarkup.setChatId(String.valueOf(chatId));
         message.setChatId(String.valueOf(chatId));
         message.setText("Премьер-Лига. Регулярный сезон.\nПрогноз на " + (roundRepository.findCurrentRound(currentTime)+1) + "-й тур");
 //        message.setText("Премьер-Лига. Регулярный сезон.\nПрогноз на " + roundRepository.findCurrentRound(currentTime) + "-й тур");
@@ -1185,12 +1266,13 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     }
 
-    public void sendSinglePhoto(long chatId, String path){
+    public void sendSinglePhoto(long chatId, String path, String caption){
         SendPhoto sendPhoto = new SendPhoto();
         sendPhoto.setChatId(String.valueOf(chatId));
+        sendPhoto.setCaption(caption);
         InputFile inputFile = new InputFile();
         File file = new File(path);
-        inputFile.setMedia(file,"New Photo");
+        inputFile.setMedia(file,caption);
         sendPhoto.setPhoto(inputFile);
         try{
             execute(sendPhoto);
@@ -1199,30 +1281,39 @@ public class TelegramBot extends TelegramLongPollingBot {
             log.error("Error occurred: " + e.getMessage()+"; " + LocalDateTime.now().toEpochSecond(ZoneOffset.UTC) );
         }
     }
+    public void sendSingleDocument(long chatId, String path, String caption){
 
-    public void sendGroupPhoto(long chatId, String path){
-        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+        SendDocument sendDocument = new SendDocument();
+        sendDocument.setChatId(String.valueOf(chatId));
+        sendDocument.setCaption(caption);
+        InputFile inputFile = new InputFile();
+        File file = new File(path);
+        inputFile.setMedia(file,caption);
+        sendDocument.setDocument(inputFile);
+        try{
+            execute(sendDocument);
+        }
+        catch(TelegramApiException e){
+            log.error("Error occurred: " + e.getMessage()+"; " + LocalDateTime.now().toEpochSecond(ZoneOffset.UTC) );
+        }
+
+    }
+
+    public void sendGroupPhoto(long chatId, String path, String caption){
         File directory = new File(path);
         File[] files = directory.listFiles();
         List<InputMedia> inputMedia = new ArrayList<>();
         for(File f:files){
             InputMedia input = new InputMediaPhoto();
             input.setMedia(f,f.getName());
-//            input.setMediaName(f.getName());
             if(inputMedia.size()<=10){
                 inputMedia.add(input);
             }
-            StringBuilder caption = new StringBuilder();
-            caption.append("Результаты ");
-            caption.append(roundRepository.findCurrentRound(currentTime));
-            caption.append(" -ого тура");
-            inputMedia.get(0).setCaption(String.valueOf(caption));
+
+            inputMedia.get(0).setCaption(caption);
 
         }
 
-
-        MessageId messageId = new MessageId();
-        messageId.setMessageId(100000L);
 
         SendMediaGroup sendMediaGroup = new SendMediaGroup();
         sendMediaGroup.setMedias(inputMedia);
@@ -1236,7 +1327,8 @@ public class TelegramBot extends TelegramLongPollingBot {
             log.error("Error occurred: " + e.getMessage()+"; " + LocalDateTime.now().toEpochSecond(ZoneOffset.UTC) );
         }
     }
-    public void sendPreview(long chatId, String path){
+
+    public void sendGroupFiles(long chatId, String path, String caption){
         File directory = new File(path);
         File[] files = directory.listFiles();
         List<InputMedia> inputMedia = new ArrayList<>();
@@ -1244,11 +1336,14 @@ public class TelegramBot extends TelegramLongPollingBot {
             InputMedia input = new InputMediaPhoto();
             input.setMedia(f,f.getName());
             input.setMediaName(f.getName());
-            input.setCaption("Премьер-Лига");
             if(inputMedia.size()<=10){
-                inputMedia.add(input);
+                if(f.getName().contains("-")){
+                    inputMedia.add(input);
+                }
+
             }
         }
+        inputMedia.get(0).setCaption(caption);
 
         SendMediaGroup sendMediaGroup = new SendMediaGroup();
         sendMediaGroup.setMedias(inputMedia);

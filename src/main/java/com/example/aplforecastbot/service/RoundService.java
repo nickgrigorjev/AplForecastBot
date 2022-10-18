@@ -37,8 +37,8 @@ public class RoundService {
     void checkAndUpdateDatesRound() throws IOException {
         Timestamp currentDate = new Timestamp(System.currentTimeMillis());
 //
-////        byte currentNumberOfRound = matchResultRepository.findCurrentRound(currentDate);
-        byte currentNumberOfRound = 1;
+        byte currentNumberOfRound = matchResultRepository.findCurrentRound(currentDate);
+//        byte currentNumberOfRound = 1;
         for(byte i=currentNumberOfRound;i<39;i++){
             System.out.println(i);
             Round round = new Round();

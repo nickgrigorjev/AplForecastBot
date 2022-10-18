@@ -38,12 +38,16 @@ public interface ForecastRepository extends JpaRepository<Forecast,Long> {
     @Query(nativeQuery = true,value = "update aplforecastbot.forecast set forecast_home_team_goals=:htGoal where match_result_id = :gameId")
     int updateForecastHomeTeamGoal(@Param("htGoal") byte htGoal, @Param("gameId") long gameId);
 
-    Optional <Forecast> findByMatchResult(MatchResult matchResult);
+    @Query("select b from Forecast b where b.matchResult.idGameOnSoccer365ru=:id")
+    Optional <List<Forecast>> findByMatchResult(@Param("id") Long id);
 
     @Modifying
     @Transactional
     @Query(nativeQuery = true,value = "update aplforecastbot.forecast set point=:point where match_result_id = :gameId and forecaster_id = :forecasterId")
     int updateForecastPoint(@Param("point") int point, @Param("gameId") long gameId, @Param("forecasterId") long forecasterId);
+
+    @Query("select sum(b.point) from Forecast b where b.forecaster.id=:id")
+    int sumPoints(@Param("id") Long id);
 
 //    @Modifying
 //    @Transactional
@@ -53,8 +57,12 @@ public interface ForecastRepository extends JpaRepository<Forecast,Long> {
 
 
     Forecast findByMatchResult_IdGameOnSoccer365ruAndForecaster_Id(@Param("gameId") long gameId, @Param("forecasterId") long forecasterId);
-
 //    @Query("update Forecast b set b.point=:point where b.forecaster=: forecaster and b.matchResult=:matchResult")
 //    int updateForecastPoint(@Param("point") int point, @Param("matchResult") MatchResult matchResult, @Param("forecaster") Forecaster forecaster);
+
+//    @Query("select sum(b.point) from Forecast b where b.forecaster=:forecaster")
+//    Forecast getForecast(@Param("forecaster") Forecaster forecaster);
+
+//    Forecast findForecastByForecaster_IdAndMatchResult_IdGameOnSoccer365ru(@Param("gameId") long gameId, @Param("forecasterId") long forecasterId)
 
 }

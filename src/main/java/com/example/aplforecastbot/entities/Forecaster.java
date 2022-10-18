@@ -1,15 +1,18 @@
 package com.example.aplforecastbot.entities;
 
-import lombok.Data;
+import lombok.*;
+import org.hibernate.Hibernate;
 
 import javax.persistence.*;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.Objects;
 
 @Entity
-@Data
+@Getter
+@Setter
+@ToString
+@RequiredArgsConstructor
 @Table(name = "forecaster")
 public class Forecaster {
 
@@ -20,9 +23,10 @@ public class Forecaster {
     private int rating;
     private int points;
     private Timestamp registeredAt;
+    private char arrow;
 
 
-    @OneToMany(mappedBy = "forecaster")
+    @OneToMany(fetch = FetchType.EAGER,mappedBy = "forecaster",cascade = CascadeType.ALL)
     private List<Forecast> forecasts;
 
     @OneToOne(mappedBy = "forecaster")
@@ -32,4 +36,16 @@ public class Forecaster {
     @JoinColumn(name = "round_id")
     private Round round;
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
+        Forecaster that = (Forecaster) o;
+        return id != null && Objects.equals(id, that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

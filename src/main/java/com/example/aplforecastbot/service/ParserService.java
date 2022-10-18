@@ -149,6 +149,7 @@ public class ParserService {
                     if(e.hasClass("event_ht_icon live_mispen")) {eventHt="mispen";htMisPen++;}
                     if(e.hasClass("event_ht_icon live_owngoal")) {eventHt="ownGoal";gtOwnGoals++;}
                     if(e.hasClass("event_ht_icon live_pengoal")) {eventHt="penalty";htPenalties++;}
+                    if(e.hasClass("event_ht_icon live_var")) {eventHt="var";}
                 }
                 Elements goalAtElements = eventAtElements.get(i).getAllElements();
                 for (Element e : goalAtElements) {
@@ -159,6 +160,7 @@ public class ParserService {
                     if(e.hasClass("event_at_icon live_mispen")) {eventAt="mispen";gtMisPen++;}
                     if(e.hasClass("event_at_icon live_owngoal")) {eventAt="ownGoal";htOwnGoals++;}
                     if(e.hasClass("event_at_icon live_pengoal")) {eventAt="penalty";gtPenalties++;}
+                    if(e.hasClass("event_at_icon live_var")) {eventAt="var";}
                 }
                 eventsHt.add(eventHtElements.get(i).text() + ";" + eventHt);
                 eventsAt.add(eventAt + ";" + eventAtElements.get(i).text());
@@ -207,46 +209,46 @@ public class ParserService {
 
         Optional<MatchResult> matchResultAtDataBase = matchResultRepository.findById(gameId);
 
-        System.out.println("*************************************************************************");
-        System.out.println(eventsHt);
-        System.out.println(eventsAt);
-        System.out.println("Инфа для сбора компонентов объекта");
-        System.out.println("status - " + status.toLowerCase());
-        System.out.println(eventDate);
-        String[] data = eventDate.split(",");
-        System.out.println("numberOfRound - " + Integer.parseInt(data[1].trim().replaceAll("-й тур", "")));
-        System.out.println("ht - " + teamHt);
-        System.out.println("gt - " + teamAt);
-        System.out.println("ht - " + scoreTeamHt);
-        System.out.println("gt - " + scoreTeamAt);
-        System.out.println("htPenalties - " + htPenalties);
-        System.out.println("gtPenalties - " + gtPenalties);
-        System.out.println("htOwnGoals - " + htOwnGoals);
-        System.out.println("gtOwnGoals - " + gtOwnGoals);
-        System.out.println(statistic);
-        System.out.println("htYellowCards - " + statistic.get("желтые карточки").get(0));
-        System.out.println("gtYellowCards - " + statistic.get("желтые карточки").get(1));
-
-        System.out.println("htRedCards - " + statistic.get("красные карточки").get(0));
-        System.out.println("gtRedCards - " + statistic.get("красные карточки").get(1));
-
-        System.out.println("htOffsides - " + statistic.get("офсайды").get(0));
-        System.out.println("gtOffsides - " + statistic.get("офсайды").get(1));
-
-        System.out.println("htShots - " + statistic.get("удары").get(0));
-        System.out.println("gtShots - " + statistic.get("удары").get(1));
-
-        System.out.println("htShotsOnTarget - " + statistic.get("удары в створ").get(0));
-        System.out.println("gtShotsOnTarget - " + statistic.get("удары в створ").get(1));
-
-        System.out.println("htCornerKicks - " + statistic.get("угловые").get(0));
-        System.out.println("gtCornerKicks - " + statistic.get("угловые").get(1));
-
-        System.out.println("htFouls - " + statistic.get("нарушения").get(0));
-        System.out.println("gtFouls - " + statistic.get("нарушения").get(1));
-
-        System.out.println("htPossession - " + statistic.get("владение %").get(0));
-        System.out.println("gtPossession - " + statistic.get("владение %").get(1));
+//        System.out.println("*************************************************************************");
+//        System.out.println(eventsHt);
+//        System.out.println(eventsAt);
+//        System.out.println("Инфа для сбора компонентов объекта");
+//        System.out.println("status - " + status.toLowerCase());
+//        System.out.println(eventDate);
+//        String[] data = eventDate.split(",");
+//        System.out.println("numberOfRound - " + Integer.parseInt(data[1].trim().replaceAll("-й тур", "")));
+//        System.out.println("ht - " + teamHt);
+//        System.out.println("gt - " + teamAt);
+//        System.out.println("ht - " + scoreTeamHt);
+//        System.out.println("gt - " + scoreTeamAt);
+//        System.out.println("htPenalties - " + htPenalties);
+//        System.out.println("gtPenalties - " + gtPenalties);
+//        System.out.println("htOwnGoals - " + htOwnGoals);
+//        System.out.println("gtOwnGoals - " + gtOwnGoals);
+//        System.out.println(statistic);
+//        System.out.println("htYellowCards - " + statistic.get("желтые карточки").get(0));
+//        System.out.println("gtYellowCards - " + statistic.get("желтые карточки").get(1));
+//
+//        System.out.println("htRedCards - " + statistic.get("красные карточки").get(0));
+//        System.out.println("gtRedCards - " + statistic.get("красные карточки").get(1));
+//
+//        System.out.println("htOffsides - " + statistic.get("офсайды").get(0));
+//        System.out.println("gtOffsides - " + statistic.get("офсайды").get(1));
+//
+//        System.out.println("htShots - " + statistic.get("удары").get(0));
+//        System.out.println("gtShots - " + statistic.get("удары").get(1));
+//
+//        System.out.println("htShotsOnTarget - " + statistic.get("удары в створ").get(0));
+//        System.out.println("gtShotsOnTarget - " + statistic.get("удары в створ").get(1));
+//
+//        System.out.println("htCornerKicks - " + statistic.get("угловые").get(0));
+//        System.out.println("gtCornerKicks - " + statistic.get("угловые").get(1));
+//
+//        System.out.println("htFouls - " + statistic.get("нарушения").get(0));
+//        System.out.println("gtFouls - " + statistic.get("нарушения").get(1));
+//
+//        System.out.println("htPossession - " + statistic.get("владение %").get(0));
+//        System.out.println("gtPossession - " + statistic.get("владение %").get(1));
 
             try{
 
@@ -260,6 +262,8 @@ public class ParserService {
                 matchResult.setHt(matchResultRepository.findById(gameId).get().getHt());
                 matchResult.setGt(matchResultRepository.findById(gameId).get().getGt());
                 matchResult.setRound(roundRepository.findByNumberOfRound(matchResult.getNumberOfRound()));
+                matchResult.setShortHt(matchResultRepository.findById(gameId).get().getShortHt());
+                matchResult.setShortGt(matchResultRepository.findById(gameId).get().getShortGt());
 
                 matchResult.setHtGoals(Byte.parseByte(scoreTeamHt));
                 matchResult.setGtGoals(Byte.parseByte(scoreTeamAt));
@@ -324,8 +328,9 @@ public class ParserService {
 
 
                     if(matchResultAtDataBase.isPresent()){
-                        if(matchResultAtDataBase.get().getHtGoals()==matchResult.getHtGoals()&&
-                                matchResultAtDataBase.get().getGtGoals()==matchResult.getGtGoals()&&
+                        if(
+//                                matchResultAtDataBase.get().getHtGoals()==matchResult.getHtGoals()&&
+//                                matchResultAtDataBase.get().getGtGoals()==matchResult.getGtGoals()&&
 //                                matchResultAtDataBase.get().getHtYellowCards()==matchResult.getHtYellowCards()&&
 //                                matchResultAtDataBase.get().getGtYellowCards()==matchResult.getGtYellowCards()&&
 //                                matchResultAtDataBase.get().getHtOwnGoals()==matchResult.getHtOwnGoals()&&
@@ -409,6 +414,8 @@ public class ParserService {
                 matchResult.setHt(matchResultRepository.findById(gameId).get().getHt());
                 matchResult.setGt(matchResultRepository.findById(gameId).get().getGt());
                 matchResult.setRound(roundRepository.findByNumberOfRound(matchResult.getNumberOfRound()));
+                matchResult.setShortHt(matchResultRepository.findById(gameId).get().getShortHt());
+                matchResult.setShortGt(matchResultRepository.findById(gameId).get().getShortGt());
 
                 matchResult.setHtGoals((byte) 0);
                 matchResult.setGtGoals((byte) 0);
@@ -447,14 +454,15 @@ public class ParserService {
                 matchResult.setGtPossession((byte) 0);
 
                 if(matchResultAtDataBase.isPresent()){
-                    if(matchResultAtDataBase.get().getHtGoals()==matchResult.getHtGoals()&&
-                            matchResultAtDataBase.get().getGtGoals()==matchResult.getGtGoals()&&
-                            matchResultAtDataBase.get().getHtYellowCards()==matchResult.getHtYellowCards()&&
-                            matchResultAtDataBase.get().getGtYellowCards()==matchResult.getGtYellowCards()&&
-                            matchResultAtDataBase.get().getHtOwnGoals()==matchResult.getHtOwnGoals()&&
-                            matchResultAtDataBase.get().getGtOwnGoals()==matchResult.getGtOwnGoals()&&
-                            matchResultAtDataBase.get().getHtMisPen()==matchResult.getHtMisPen()&&
-                            matchResultAtDataBase.get().getGtMisPen()==matchResult.getGtMisPen()&&
+                    if(
+//                            matchResultAtDataBase.get().getHtGoals()==matchResult.getHtGoals()&&
+//                            matchResultAtDataBase.get().getGtGoals()==matchResult.getGtGoals()&&
+//                            matchResultAtDataBase.get().getHtYellowCards()==matchResult.getHtYellowCards()&&
+//                            matchResultAtDataBase.get().getGtYellowCards()==matchResult.getGtYellowCards()&&
+//                            matchResultAtDataBase.get().getHtOwnGoals()==matchResult.getHtOwnGoals()&&
+//                            matchResultAtDataBase.get().getGtOwnGoals()==matchResult.getGtOwnGoals()&&
+//                            matchResultAtDataBase.get().getHtMisPen()==matchResult.getHtMisPen()&&
+//                            matchResultAtDataBase.get().getGtMisPen()==matchResult.getGtMisPen()&&
                             !matchResult.getStatus().equalsIgnoreCase("завершен"))
                     {System.out.println("новых событий к "+matchResult.getStatus()+" в матче " + matchResult.getHt() + " - " + matchResult.getGt()+" нет");}
                     else{
@@ -510,6 +518,7 @@ public class ParserService {
 
     }
 
+
     void parseAndWriteMatchResultsToDatabase1(long gameId) throws IOException {
         List<String> eventsHt = new ArrayList<>();
         List<String> eventsAt = new ArrayList<>();
@@ -551,9 +560,24 @@ public class ParserService {
 //                addTextInImage(e.getElementsByTag("h2").text(),"jpg",input,output,10,25,false,15);//Заголовок файла
                 eventDate = e.getElementsByTag("h2").text();
                 System.out.println(eventDate); //Заголовок
-                status = e.getElementsByAttributeValue("class", "live_game_status").text();
+                status = e.getElementsByAttributeValue("class", "live_game_status").text();//status
                 System.out.println(e.getElementsByAttributeValue("class", "live_game_status").text());
             }
+
+            if(status.equalsIgnoreCase("завершен")){
+                System.out.println("Проверка! - завершен");
+            }
+            else if(status.equalsIgnoreCase("перенесен")){
+                System.out.println("Проверка! - перенесен");
+            }
+            else{
+                System.out.println("Проверка! - матч еще не состоялся");
+            }
+
+
+
+
+
             elements = doc.getElementsByAttributeValue("class", "live_game left");
 
             for (Element e : elements) {
@@ -886,14 +910,15 @@ public class ParserService {
             matchResult.setGtPossession((byte) 0);
 
             if(matchResultAtDataBase.isPresent()){
-                if(matchResultAtDataBase.get().getHtGoals()==matchResult.getHtGoals()&&
-                        matchResultAtDataBase.get().getGtGoals()==matchResult.getGtGoals()&&
-                        matchResultAtDataBase.get().getHtYellowCards()==matchResult.getHtYellowCards()&&
-                        matchResultAtDataBase.get().getGtYellowCards()==matchResult.getGtYellowCards()&&
-                        matchResultAtDataBase.get().getHtOwnGoals()==matchResult.getHtOwnGoals()&&
-                        matchResultAtDataBase.get().getGtOwnGoals()==matchResult.getGtOwnGoals()&&
-                        matchResultAtDataBase.get().getHtMisPen()==matchResult.getHtMisPen()&&
-                        matchResultAtDataBase.get().getGtMisPen()==matchResult.getGtMisPen()&&
+                if(
+//                        matchResultAtDataBase.get().getHtGoals()==matchResult.getHtGoals()&&
+//                        matchResultAtDataBase.get().getGtGoals()==matchResult.getGtGoals()&&
+//                        matchResultAtDataBase.get().getHtYellowCards()==matchResult.getHtYellowCards()&&
+//                        matchResultAtDataBase.get().getGtYellowCards()==matchResult.getGtYellowCards()&&
+//                        matchResultAtDataBase.get().getHtOwnGoals()==matchResult.getHtOwnGoals()&&
+//                        matchResultAtDataBase.get().getGtOwnGoals()==matchResult.getGtOwnGoals()&&
+//                        matchResultAtDataBase.get().getHtMisPen()==matchResult.getHtMisPen()&&
+//                        matchResultAtDataBase.get().getGtMisPen()==matchResult.getGtMisPen()&&
                         !matchResult.getStatus().equalsIgnoreCase("завершен"))
                 {System.out.println("новых событий к "+matchResult.getStatus()+" в матче " + matchResult.getHt() + " - " + matchResult.getGt()+" нет");}
                 else{

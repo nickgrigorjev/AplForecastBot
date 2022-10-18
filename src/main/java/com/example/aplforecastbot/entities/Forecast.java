@@ -1,17 +1,17 @@
 package com.example.aplforecastbot.entities;
 
-import lombok.Data;
-import org.hibernate.annotations.Cascade;
-import org.hibernate.annotations.LazyCollection;
-import org.hibernate.annotations.LazyCollectionOption;
+import lombok.*;
+import org.hibernate.Hibernate;
 
 import javax.persistence.*;
 import java.sql.Timestamp;
-import java.util.List;
-import java.util.Set;
+import java.util.Objects;
 
 @Entity
-@Data
+@Getter
+@Setter
+@ToString
+@RequiredArgsConstructor
 @Table(name = "forecast")
 public class Forecast {
     @Id
@@ -26,12 +26,24 @@ public class Forecast {
     @JoinColumn(name = "match_result_id")
     private MatchResult matchResult;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
+    @ToString.Exclude
     @JoinColumn(name = "forecaster_id")
 //    @JoinTable(name = "forecasts_forecasters",
 //    joinColumns = @JoinColumn(name = "forecast_id"),
 //    inverseJoinColumns = @JoinColumn(name = "forecaster_id"))
     private Forecaster forecaster;
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
+        Forecast forecast = (Forecast) o;
+        return id != null && Objects.equals(id, forecast.id);
+    }
 
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

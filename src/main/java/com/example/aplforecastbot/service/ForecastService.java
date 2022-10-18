@@ -76,4 +76,23 @@ public class ForecastService {
 
     }
 
+    public void setNullPointToForecast(Long idGame){
+        List<Forecast> forecastsByGameId = forecastRepository.findAllByMatchResult_IdGame(idGame);
+        for(Forecast f:forecastsByGameId){
+            Forecast forecast = new Forecast();
+            forecast.setForecaster(f.getForecaster());
+            forecast.setId(f.getId());
+            forecast.setDateTimeForecastMade(f.getDateTimeForecastMade());
+            forecast.setMatchResult(f.getMatchResult());
+            forecast.setForecastHomeTeamGoals(f.getForecastHomeTeamGoals());
+            forecast.setForecastGuestTeamGoals(f.getForecastGuestTeamGoals());
+            forecast.setPoint(0);
+            forecastRepository.save(forecast);
+            System.out.println("Записаны очки для " + f.getForecaster().getName()+ " " + f.getForecaster().getId());
+            System.out.println("matchResultId = "+f.getMatchResult().getIdGameOnSoccer365ru()+ " Forecaster " + f.getForecaster().getName()
+                    + " ForecasterId " + f.getForecaster().getId());
+        }
+
+    }
+
 }
